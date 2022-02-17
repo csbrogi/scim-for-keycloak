@@ -1,9 +1,7 @@
 package de.captaingoldfish.scim.sdk.keycloak.scim.handler;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -68,13 +66,14 @@ public class UserHandler extends ResourceHandler<User>
 
   // private static final String SCIM_HONORIC_SUFFIX = "honoricSuffix";
 
+  private static final Set<String> allowedAttrs = new HashSet<>(Arrays.asList("firstName",
+                                                                              "lastName",
+                                                                              "email",
+                                                                              "username"));
+
   private static final String SCIM_IS_IMPORTED = "isImported";
 
   private static final String SCIM_LDAP_ID = "LDAP_ID";
-
-  // private static final String SCIM_MIDDLE_NAME = "middleName";
-
-  // private static final String SCIM_ORGANIZATION = "company";
 
   private static final String SCIM_TELPEHONE_NUMBER = "phoneNumber";
 
@@ -95,33 +94,49 @@ public class UserHandler extends ResourceHandler<User>
   public User createResource(User user, Context context)
   {
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
+    RealmModel realmModel = keycloakSession.getContext().getRealm();
     if (KEYCLOAK_DEBUG != null)
     {
-      RealmModel realmModel = keycloakSession.getContext().getRealm();
       log.info("{} Realm: {} create user Request {}",
                this.getClass().getName(),
                realmModel.getName(),
                user.toPrettyString());
     }
     final String username = user.getUserName().get();
-    if (keycloakSession.users().getUserByUsername(keycloakSession.getContext().getRealm(), username) != null)
+    UserModel existingUser = keycloakSession.users().getUserByUsername(realmModel, username);
+    if (existingUser != null)
     {
-      log.error(this.getClass().getName() + " create user Request: the username '" + username + "' is already taken");
-      throw new ConflictException("the username '" + username + "' is already taken");
+      if (checkAttributes(existingUser.getAttributes()) || !existingUser.isEnabled())
+      {
+        return patchExistingUser(context, realmModel, existingUser, user);
+      }
+      else
+      {
+        log.error(this.getClass().getName() + " create user Request: the username '" + username + "' is already taken");
+        throw new ConflictException("the username '" + username + "' is already taken");
+      }
     }
     Optional<Email> emailOpt = user.getEmails()
                                    .stream()
                                    .filter(MultiComplexNode::isPrimary)
                                    .findAny()
                                    .filter(value -> value.getValue().isPresent());
-    if (emailOpt.isPresent() && keycloakSession.users()
-                                               .getUserByEmail(emailOpt.get().getValue().orElse("xx"),
-                                                               keycloakSession.getContext().getRealm()) != null)
+    if (emailOpt.isPresent())
     {
-      log.error(this.getClass().getName() + " create user Request: the email '" + emailOpt.get().getValue().get()
-                + "' is already taken");
-      throw new ConflictException("the email '" + emailOpt.get().getValue().get() + "' is already taken");
-
+      existingUser = keycloakSession.users().getUserByEmail(emailOpt.get().getValue().orElse("xx"), realmModel);
+    }
+    if (existingUser != null)
+    {
+      if (checkAttributes(existingUser.getAttributes()) || !existingUser.isEnabled())
+      {
+        return patchExistingUser(context, realmModel, existingUser, user);
+      }
+      else
+      {
+        log.error(this.getClass().getName() + " create user Request: the email '" + emailOpt.get().getValue().get()
+                  + "' is already taken");
+        throw new ConflictException("the email '" + emailOpt.get().getValue().get() + "' is already taken");
+      }
     }
 
     UserModel userModel = keycloakSession.users().addUser(keycloakSession.getContext().getRealm(), username);
@@ -137,9 +152,43 @@ public class UserHandler extends ResourceHandler<User>
     log.debug("Created user with username: {}", userModel.getUsername());
     if (KEYCLOAK_DEBUG != null)
     {
-      RealmModel realmModel = keycloakSession.getContext().getRealm();
-
       log.info("{} Realm: {} created user User returns {}",
+               this.getClass().getName(),
+               realmModel.getName(),
+               newUser.toPrettyString());
+    }
+    return newUser;
+  }
+
+  private boolean checkAttributes(Map<String, List<String>> attributes)
+  {
+    boolean returnVal = true;
+    for ( String attribute : attributes.keySet() )
+    {
+      if (!allowedAttrs.contains(attribute))
+      {
+        returnVal = false;
+        break;
+      }
+    }
+    return returnVal;
+  }
+
+  private User patchExistingUser(Context context, RealmModel realmModel, UserModel existingUser, User user)
+  {
+    existingUser = userToModel(user, existingUser, true);
+    User newUser = modelToUser(existingUser);
+    {
+      ScimAdminEventBuilder adminEventAuditer = ((ScimKeycloakContext)context).getAdminEventAuditer();
+      adminEventAuditer.createEvent(OperationType.CREATE,
+                                    ResourceType.USER,
+                                    String.format("users/%s", existingUser.getId()),
+                                    newUser);
+    }
+    log.debug("Patched user with username: {}", existingUser.getUsername());
+    if (KEYCLOAK_DEBUG != null)
+    {
+      log.info("{} Realm: {} Patched user User returns {}",
                this.getClass().getName(),
                realmModel.getName(),
                newUser.toPrettyString());
