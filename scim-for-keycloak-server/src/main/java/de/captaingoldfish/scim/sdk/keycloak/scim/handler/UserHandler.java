@@ -195,7 +195,9 @@ public class UserHandler extends ResourceHandler<User>
         userList.add(add);
       }
     }
-    log.info("UserHandler.listResources returns " + userList.size() + " Items");
+    log.info(String.format("UserHandler.listResources Realm: %s returns %d Items",
+                           realmModel.getName(),
+                           userList.size()));
     return PartialListResponse.<User> builder().totalResults(userList.size()).resources(userList).build();
   }
 

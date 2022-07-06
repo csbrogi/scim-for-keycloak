@@ -52,12 +52,13 @@ public class GroupHandler extends ResourceHandler<Group>
   public Group createResource(Group group, Context context)
   {
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
+    RealmModel realmModel = keycloakSession.getContext().getRealm();
     final String groupName = group.getDisplayName().get();
     if (new GroupService(keycloakSession).getGroupByName(groupName).isPresent())
     {
       throw new ConflictException("a group with name '" + groupName + "' does already exist");
     }
-    GroupModel groupModel = keycloakSession.getContext().getRealm().createGroup(groupName);
+    GroupModel groupModel = realmModel.createGroup(groupName);
     groupModel = groupToModel((ScimKeycloakContext)context, group, groupModel);
     Group newGroup = modelToGroup(keycloakSession, groupModel);
     {
@@ -67,7 +68,7 @@ public class GroupHandler extends ResourceHandler<Group>
                                     String.format("groups/%s", groupModel.getId()),
                                     newGroup);
     }
-    log.debug("Created group with name: {}", groupModel.getName());
+    log.debug("Realm {} Created group with name: {}", realmModel.getName(), groupModel.getName());
     return newGroup;
   }
 
@@ -80,9 +81,10 @@ public class GroupHandler extends ResourceHandler<Group>
                            List<SchemaAttribute> excludedAttributes,
                            Context context)
   {
-    log.info("GroupHandler.getResource " + id);
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
-    GroupModel groupModel = keycloakSession.getContext().getRealm().getGroupById(id);
+    RealmModel realmModel = keycloakSession.getContext().getRealm();
+    log.info(String.format("GroupHandler.getResource %s Realm: %s", id, realmModel.getName()));
+    GroupModel groupModel = realmModel.getGroupById(id);
     if (groupModel == null)
     {
       return null; // causes a resource not found exception you may also throw it manually
@@ -108,14 +110,13 @@ public class GroupHandler extends ResourceHandler<Group>
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
     // TODO in order to filter on database level the feature "autoFiltering" must be disabled and the JPA criteria
     // api should be used
-    Stream<GroupModel> groupModelsStream = keycloakSession.getContext().getRealm().getGroupsStream();
+    RealmModel realm = keycloakSession.getContext().getRealm();
+    Stream<GroupModel> groupModelsStream = realm.getGroupsStream();
     List<Group> groupList = groupModelsStream.map(groupModel -> modelToGroup(keycloakSession, groupModel))
                                              .collect(Collectors.toList());
-    log.info(String.format("GroupHandler listResources returns %d Groups", groupList.size()));
-    return PartialListResponse.<Group> builder()
-                              .totalResults(keycloakSession.getContext().getRealm().getGroupsCount(false))
-                              .resources(groupList)
-                              .build();
+    log.info(String.format(String.format("GroupHandler listResources Realm: %s returns %%d Groups", realm.getName()),
+                           groupList.size()));
+    return PartialListResponse.<Group> builder().totalResults(realm.getGroupsCount(false)).resources(groupList).build();
   }
 
   /**
@@ -125,7 +126,8 @@ public class GroupHandler extends ResourceHandler<Group>
   public Group updateResource(Group groupToUpdate, Context context)
   {
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
-    GroupModel groupModel = keycloakSession.getContext().getRealm().getGroupById(groupToUpdate.getId().get());
+    RealmModel realmModel = keycloakSession.getContext().getRealm();
+    GroupModel groupModel = realmModel.getGroupById(groupToUpdate.getId().get());
     if (groupModel == null)
     {
       return null; // causes a resource not found exception you may also throw it manually
@@ -139,7 +141,7 @@ public class GroupHandler extends ResourceHandler<Group>
                                     String.format("groups/%s", groupModel.getId()),
                                     group);
     }
-    log.info("Updated group with name: {}", groupModel.getName());
+    log.info("Realm: {} Updated group with name: {}", realmModel.getName(), groupModel.getName());
     return group;
   }
 
