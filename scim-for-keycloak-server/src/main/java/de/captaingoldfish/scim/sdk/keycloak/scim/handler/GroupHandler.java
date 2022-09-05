@@ -128,6 +128,7 @@ public class GroupHandler extends ResourceHandler<Group>
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
     RealmModel realmModel = keycloakSession.getContext().getRealm();
     GroupModel groupModel = realmModel.getGroupById(groupToUpdate.getId().get());
+    log.info("Realm: {} Update group with name: {} starts", realmModel.getName(), groupModel.getName());
     if (groupModel == null)
     {
       return null; // causes a resource not found exception you may also throw it manually
@@ -141,7 +142,7 @@ public class GroupHandler extends ResourceHandler<Group>
                                     String.format("groups/%s", groupModel.getId()),
                                     group);
     }
-    log.info("Realm: {} Updated group with name: {}", realmModel.getName(), groupModel.getName());
+    log.info("Realm: {} Updated group with name: {} done", realmModel.getName(), groupModel.getName());
     return group;
   }
 
