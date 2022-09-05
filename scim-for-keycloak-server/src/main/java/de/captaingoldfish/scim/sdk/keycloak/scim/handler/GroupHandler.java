@@ -123,7 +123,7 @@ public class GroupHandler extends ResourceHandler<Group>
    * {@inheritDoc}
    */
   @Override
-  public Group updateResource(Group groupToUpdate, Context context)
+  public synchronized Group updateResource(Group groupToUpdate, Context context)
   {
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
     RealmModel realmModel = keycloakSession.getContext().getRealm();
