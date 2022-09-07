@@ -104,9 +104,11 @@ public class UserHandler extends ResourceHandler<User>
                                                         .findFirst();
       if (duplicateOpt.isPresent())
       {
-        throw new ConflictException(String.format("the externalId '%s' is already taken by %s",
-                                                  externalIdOpt.get(),
-                                                  duplicateOpt.get().getUsername()));
+        final String errMsg = String.format("the externalId '%s' is already taken by %s",
+                                            externalIdOpt.get(),
+                                            duplicateOpt.get().getUsername());
+        log.error(this.getClass().getName() + " create user Request: " + errMsg);
+        throw new ConflictException(errMsg);
       }
 
     }
