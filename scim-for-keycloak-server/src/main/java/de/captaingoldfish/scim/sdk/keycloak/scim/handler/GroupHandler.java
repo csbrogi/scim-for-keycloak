@@ -54,6 +54,8 @@ public class GroupHandler extends ResourceHandler<Group>
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
     RealmModel realmModel = keycloakSession.getContext().getRealm();
     final String groupName = group.getDisplayName().get();
+    log.info("Realm {} Create group with name: {}", realmModel.getName(), groupName);
+
     if (new GroupService(keycloakSession).getGroupByName(groupName).isPresent())
     {
       throw new ConflictException("a group with name '" + groupName + "' does already exist");

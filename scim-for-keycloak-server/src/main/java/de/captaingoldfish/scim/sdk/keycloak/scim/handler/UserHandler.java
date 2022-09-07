@@ -79,9 +79,9 @@ public class UserHandler extends ResourceHandler<User>
   public User createResource(User user, Context context)
   {
     KeycloakSession keycloakSession = ((ScimKeycloakContext)context).getKeycloakSession();
+    RealmModel realmModel = keycloakSession.getContext().getRealm();
     if (KEYCLOAK_DEBUG != null)
     {
-      RealmModel realmModel = keycloakSession.getContext().getRealm();
       log.info("{} Realm: {} create user Request {}",
                this.getClass().getName(),
                realmModel.getName(),
@@ -93,6 +93,24 @@ public class UserHandler extends ResourceHandler<User>
       log.error(this.getClass().getName() + " create user Request: the username '" + username + "' is already taken");
       throw new ConflictException("the username '" + username + "' is already taken");
     }
+    final Optional<String> externalIdOpt = user.getExternalId();
+    if (externalIdOpt.isPresent())
+    {
+
+      Optional<UserModel> duplicateOpt = keycloakSession.users()
+                                                        .getUsersStream(realmModel)
+                                                        .filter(u -> externalIdOpt.get()
+                                                                                  .equals(u.getFirstAttribute("externalId")))
+                                                        .findFirst();
+      if (duplicateOpt.isPresent())
+      {
+        throw new ConflictException(String.format("the externalId '%s' is already taken by %s",
+                                                  externalIdOpt.get(),
+                                                  duplicateOpt.get().getUsername()));
+      }
+
+    }
+
     Optional<Email> emailOpt = user.getEmails()
                                    .stream()
                                    .filter(MultiComplexNode::isPrimary)
@@ -121,8 +139,6 @@ public class UserHandler extends ResourceHandler<User>
     log.debug("Created user with username: {}", userModel.getUsername());
     if (KEYCLOAK_DEBUG != null)
     {
-      RealmModel realmModel = keycloakSession.getContext().getRealm();
-
       log.info("{} Realm: {} created user User returns {}",
                this.getClass().getName(),
                realmModel.getName(),
