@@ -1,10 +1,7 @@
 package de.captaingoldfish.scim.sdk.keycloak.scim.handler;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -59,6 +56,24 @@ public class GroupHandler extends ResourceHandler<Group>
     if (new GroupService(keycloakSession).getGroupByName(groupName).isPresent())
     {
       throw new ConflictException("a group with name '" + groupName + "' does already exist");
+    }
+    final Optional<String> externalIdOpt = group.getExternalId();
+    if (externalIdOpt.isPresent())
+    {
+
+      Optional<GroupModel> duplicateOpt = keycloakSession.groups()
+                                                         .getGroupsStream(realmModel)
+                                                         .filter(u -> externalIdOpt.get()
+                                                                                   .equals(u.getFirstAttribute("externalId")))
+                                                         .findFirst();
+      if (duplicateOpt.isPresent())
+      {
+        final String errMsg = String.format("the externalId '%s' is already taken by %s",
+                                            externalIdOpt.get(),
+                                            duplicateOpt.get().getName());
+        log.error(this.getClass().getName() + " create group Request: " + errMsg);
+        throw new ConflictException(errMsg);
+      }
     }
     GroupModel groupModel = realmModel.createGroup(groupName);
     groupModel = groupToModel((ScimKeycloakContext)context, group, groupModel);

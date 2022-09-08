@@ -110,7 +110,6 @@ public class UserHandler extends ResourceHandler<User>
         log.error(this.getClass().getName() + " create user Request: " + errMsg);
         throw new ConflictException(errMsg);
       }
-
     }
 
     Optional<Email> emailOpt = user.getEmails()
