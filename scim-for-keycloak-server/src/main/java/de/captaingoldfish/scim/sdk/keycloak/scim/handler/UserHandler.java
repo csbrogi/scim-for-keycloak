@@ -361,7 +361,7 @@ public class UserHandler extends ResourceHandler<User>
   {
     final boolean[] imported = {false};
     user.isImported().ifPresent(isImported -> imported[0] = isImported);
-    if (imported[0])
+    if (!imported[0])
     {
       user.getExternalId()
           .ifPresent(externalId -> userModel.setSingleAttribute(AttributeNames.RFC7643.EXTERNAL_ID, externalId));
