@@ -430,10 +430,10 @@ public class UserHandler extends ResourceHandler<User>
     setMultiAttribute(user::getRoles, AttributeNames.RFC7643.ROLES, userModel);
     setMultiAttribute(user::getX509Certificates, AttributeNames.RFC7643.X509_CERTIFICATES, userModel);
 
-    if (user.getExternalId().isPresent())
-    {
-      userModel.setSingleAttribute(AttributeNames.RFC7643.EXTERNAL_ID, user.getExternalId().get());
-    }
+    // if (user.getExternalId().isPresent())
+    // {
+    // userModel.setSingleAttribute(AttributeNames.RFC7643.EXTERNAL_ID, user.getExternalId().get());
+    // }
     userModel.setSingleAttribute(AttributeNames.RFC7643.COST_CENTER,
                                  user.getEnterpriseUser().flatMap(EnterpriseUser::getCostCenter).orElse(null));
     userModel.setSingleAttribute(AttributeNames.RFC7643.DEPARTMENT,
