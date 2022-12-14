@@ -56,7 +56,7 @@ public class UserHandler extends ResourceHandler<User>
 
   private static final String SCIM_LDAP_ID = "LDAP_ID";
 
-  // private static final String SCIM_MIDDLE_NAME = "middleName";
+  private static final String BPANDA_ID = "bpandaId";
 
   // private static final String SCIM_ORGANIZATION = "company";
 
@@ -408,7 +408,7 @@ public class UserHandler extends ResourceHandler<User>
       }
     }
 
-    // Das Attribut LDAP_ID wird nur beim Anlegen gesetzt
+    // Die Attribute LDAP_ID und bpandaId werden nur beim Anlegen gesetzt
     if (isCreation)
     {
       if (user.getLdapId().isPresent())
@@ -416,9 +416,9 @@ public class UserHandler extends ResourceHandler<User>
         userModel.setSingleAttribute(SCIM_LDAP_ID, user.getLdapId().get());
       }
       else if (user.getExternalId().isPresent())
-      // if (user.getExternalId().isPresent())
       {
         userModel.setSingleAttribute(SCIM_LDAP_ID, user.getExternalId().get());
+        userModel.setSingleAttribute(BPANDA_ID, user.getExternalId().get());
       }
     }
     setMultiAttribute(user::getEmails, AttributeNames.RFC7643.EMAILS, userModel);
