@@ -76,7 +76,7 @@ public class GroupHandler extends ResourceHandler<Group>
       }
     }
     GroupModel groupModel = realmModel.createGroup(groupName);
-    groupModel = groupToModel((ScimKeycloakContext)context, group, groupModel);
+    groupModel = groupToModel((ScimKeycloakContext)context, group, groupModel, true);
     Group newGroup = modelToGroup(keycloakSession, groupModel);
     {
       ScimAdminEventBuilder adminEventAuditer = ((ScimKeycloakContext)context).getAdminEventAuditer();
@@ -150,7 +150,7 @@ public class GroupHandler extends ResourceHandler<Group>
     {
       return null; // causes a resource not found exception you may also throw it manually
     }
-    groupModel = groupToModel((ScimKeycloakContext)context, groupToUpdate, groupModel);
+    groupModel = groupToModel((ScimKeycloakContext)context, groupToUpdate, groupModel, false);
     Group group = modelToGroup(keycloakSession, groupModel);
     {
       ScimAdminEventBuilder adminEventAuditer = ((ScimKeycloakContext)context).getAdminEventAuditer();
@@ -195,7 +195,10 @@ public class GroupHandler extends ResourceHandler<Group>
    * @param groupModel the keycloak group representation
    * @return the overridden keycloak group representation
    */
-  private GroupModel groupToModel(ScimKeycloakContext scimKeycloakContext, Group group, GroupModel groupModel)
+  private GroupModel groupToModel(ScimKeycloakContext scimKeycloakContext,
+                                  Group group,
+                                  GroupModel groupModel,
+                                  boolean isCreate)
   {
     KeycloakSession keycloakSession = scimKeycloakContext.getKeycloakSession();
     RealmModel realmModel = keycloakSession.getContext().getRealm();
@@ -204,7 +207,7 @@ public class GroupHandler extends ResourceHandler<Group>
          .ifPresent(externalId -> groupModel.setSingleAttribute(AttributeNames.RFC7643.EXTERNAL_ID, externalId));
 
 
-    updateUserMemberships(scimKeycloakContext, group, groupModel, realmModel);
+    updateUserMemberships(scimKeycloakContext, group, groupModel, realmModel, isCreate);
     updateGroupMemberships(scimKeycloakContext, group, groupModel, realmModel);
 
     return groupModel;
@@ -284,14 +287,16 @@ public class GroupHandler extends ResourceHandler<Group>
 
   /**
    * remove users that are no longer associated with the current group and adds the newly associated users
-   * 
+   *
    * @param group the scim group model as it must be after the change
    * @param groupModel the current group model
+   * @param isCreate
    */
   private void updateUserMemberships(ScimKeycloakContext scimKeycloakContext,
                                      Group group,
                                      GroupModel groupModel,
-                                     RealmModel realmModel)
+                                     RealmModel realmModel,
+                                     boolean isCreate)
   {
     KeycloakSession keycloakSession = scimKeycloakContext.getKeycloakSession();
     Set<String> expectedUserMemberIds = group.getMembers().stream().filter(groupMember -> {
@@ -340,19 +345,23 @@ public class GroupHandler extends ResourceHandler<Group>
         throw new ResourceNotFoundException(String.format("User with id '%s' does not exist", newUserMemberId));
       }
       newMember.joinGroup(groupModel);
-      adminEventAuditer.createEvent(OperationType.CREATE,
-                                    ResourceType.GROUP_MEMBERSHIP,
-                                    String.format("users/%s/groups/%s", newMember.getId(), groupModel.getId()),
-                                    Group.builder()
-                                         .id(groupModel.getId())
-                                         .displayName(groupModel.getName())
-                                         .members(Collections.singletonList(Member.builder()
-                                                                                  .type(ResourceTypeNames.USER)
-                                                                                  .display(newMember.getUsername())
-                                                                                  .value(newMember.getId())
-                                                                                  .build()))
-                                         .build());
+      if (!isCreate)
+      {
+        adminEventAuditer.createEvent(OperationType.CREATE,
+                                      ResourceType.GROUP_MEMBERSHIP,
+                                      String.format("users/%s/groups/%s", newMember.getId(), groupModel.getId()),
+                                      Group.builder()
+                                           .id(groupModel.getId())
+                                           .displayName(groupModel.getName())
+                                           .members(Collections.singletonList(Member.builder()
+                                                                                    .type(ResourceTypeNames.USER)
+                                                                                    .display(newMember.getUsername())
+                                                                                    .value(newMember.getId())
+                                                                                    .build()))
+                                           .build());
+      }
     });
+
   }
 
   /**
