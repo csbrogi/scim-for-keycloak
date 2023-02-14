@@ -107,7 +107,12 @@ public class GroupHandler extends ResourceHandler<Group>
       return null; // causes a resource not found exception you may also throw it manually
     }
     Group ret = modelToGroup(keycloakSession, groupModel);
-    log.info("GroupHandler.getResource returns " + ret.toPrettyString());
+    log.trace("GroupHandler.getResource returns " + ret.toPrettyString());
+    String ids = ret.getMembers().stream().map(m -> m.getValue().orElse("---")).collect(Collectors.joining(", "));
+    log.info(String.format("GroupHandler.getResource returns Displayname %s #members %d member-ids = %s",
+                           ret.getDisplayName().orElse("--"),
+                           ret.getMembers().size(),
+                           ids));
     return ret;
   }
 
